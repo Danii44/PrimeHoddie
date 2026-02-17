@@ -1,32 +1,44 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingBag, Check } from 'lucide-react';
-import { useStore, products } from '@/store/useStore';
+import { useStore } from '@/store/useStore';
 import { toast } from 'sonner';
 
 export function ColorwaysSection() {
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   
-  // FIX: Destructure setIsCartOpen to ensure the cart opens on click
-  const { addToCart, setIsCartOpen } = useStore();
+  // 1. Get state and actions from the unified store
+  const { products, fetchProducts, isLoading, addToCart, setIsCartOpen } = useStore();
   
-  const product = products[0];
-  const selectedColor = product.colors[selectedColorIndex];
+  // 2. Fetch products if the store is empty
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [products.length, fetchProducts]);
+
+  // 3. SAFETY CHECK: Get the first product safely
+  const product = products.length > 0 ? products[0] : null;
+
+  // 4. Handle undefined colors safely
+  const selectedColor = product?.colors?.[selectedColorIndex];
 
   const handleAddToCart = () => {
-    // We default to size M (index 2) as per your logic
-    const size = product.sizes[2];
+    if (!product || !selectedColor) return;
+
+    // Use default size M or fallback to first available
+    const size = product.sizes?.[2] || product.sizes?.[0] || 'M';
     
-    // 1. Add the item to the global state
     addToCart(product, selectedColor.name, size);
-    
-    // 2. FIX: Trigger the cart drawer to open
     setIsCartOpen(true);
-    
-    // 3. Show notification
     toast.success(`${product.name} in ${selectedColor.name} added to cart!`);
   };
+
+  // 5. GUARD: Prevent crash while data is fetching
+  if (isLoading || !product || !selectedColor) {
+    return <section className="py-24 bg-[#0B0C0F] min-h-[400px]" />;
+  }
 
   return (
     <section
@@ -89,12 +101,12 @@ export function ColorwaysSection() {
               {selectedColor.name}
             </h3>
             <p className="text-3xl font-black text-[#7B2FF7] mb-6">
-              ${product.price}
+              {product.price} AED
             </p>
             
             <button
               onClick={handleAddToCart}
-              className="prime-btn-primary group"
+              className="prime-btn-primary group flex items-center gap-2 mx-auto"
             >
               <ShoppingBag className="w-4 h-4 transition-transform group-hover:-translate-y-1" />
               Add to Bag

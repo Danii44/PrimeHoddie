@@ -78,7 +78,7 @@ export default function AdminDashboard() {
               <div>
                 <p className="text-[#A6ACB8] text-sm mb-2">Total Revenue</p>
                 <p className="text-4xl font-bold text-[#7B2FF7]">
-                  ${totalRevenue.toFixed(2)}
+                  {totalRevenue.toFixed(2)} AED
                 </p>
               </div>
               <BarChart3 className="w-12 h-12 text-[#7B2FF7]/30" />

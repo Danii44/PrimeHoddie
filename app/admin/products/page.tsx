@@ -101,7 +101,7 @@ export default function AdminProductsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-2xl font-bold text-[#7B2FF7]">
-                        ${product.price}
+                        {product.price} AED
                       </p>
                       <p className="text-xs text-[#A6ACB8]">
                         Stock: {product.stock}

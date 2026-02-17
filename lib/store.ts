@@ -1,7 +1,9 @@
 'use client';
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { db } from './firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 export interface Product {
   id: string;
@@ -9,8 +11,9 @@ export interface Product {
   price: number;
   description?: string;
   image: string;
-  category?: string;
-  inStock?: boolean;
+  category: string;
+  inStock: boolean;
+  colors?: { name: string; value: string; image: string }[];
 }
 
 export interface CartItem {
@@ -18,17 +21,7 @@ export interface CartItem {
   quantity: number;
   color: string;
   size: string;
-  customizations?: {
-    baseColor?: string;
-    decalImage?: string;
-    decalPosition?: { x: number; y: number };
-    decalScale?: number;
-  };
-}
-
-export interface WishlistItem {
-  product: Product;
-  addedAt: number;
+  customizations?: any;
 }
 
 export interface User {
@@ -38,125 +31,94 @@ export interface User {
 }
 
 interface StoreState {
-  // Cart
+  products: Product[];
+  isLoading: boolean;
   cart: CartItem[];
+  user: User | null;
+  isAuthenticated: boolean;
   isCartOpen: boolean;
-  setIsCartOpen: (open: boolean) => void;
+  // Actions
+  fetchProducts: () => Promise<void>;
   addToCart: (item: CartItem) => void;
   removeFromCart: (productId: string, color: string, size: string) => void;
   updateQuantity: (productId: string, color: string, size: string, quantity: number) => void;
-  getCartCount: () => number;
-  getCartTotal: () => number;
-  clearCart: () => void;
-
-  // Wishlist
-  wishlist: WishlistItem[];
-  addToWishlist: (product: Product) => void;
-  removeFromWishlist: (productId: string) => void;
-  isInWishlist: (productId: string) => boolean;
-
-  // User
-  user: User | null;
   setUser: (user: User | null) => void;
-  isAuthenticated: boolean;
+  setIsCartOpen: (isOpen: boolean) => void;
+  // Helpers
+  getCartTotal: () => number;
+  getCartCount: () => number;
 }
 
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      // Cart
+      products: [],
+      isLoading: false,
       cart: [],
-      isCartOpen: false,
-      setIsCartOpen: (open) => set({ isCartOpen: open }),
-      addToCart: (item) =>
-        set((state) => {
-          const existingItem = state.cart.find(
-            (cartItem) =>
-              cartItem.product.id === item.product.id &&
-              cartItem.color === item.color &&
-              cartItem.size === item.size
-          );
-
-          if (existingItem) {
-            return {
-              cart: state.cart.map((cartItem) =>
-                cartItem === existingItem
-                  ? { ...cartItem, quantity: cartItem.quantity + item.quantity }
-                  : cartItem
-              ),
-            };
-          }
-
-          return { cart: [...state.cart, item] };
-        }),
-      removeFromCart: (productId, color, size) =>
-        set((state) => ({
-          cart: state.cart.filter(
-            (item) =>
-              !(
-                item.product.id === productId &&
-                item.color === color &&
-                item.size === size
-              )
-          ),
-        })),
-      updateQuantity: (productId, color, size, quantity) =>
-        set((state) => {
-          if (quantity <= 0) {
-            return {
-              cart: state.cart.filter(
-                (item) =>
-                  !(
-                    item.product.id === productId &&
-                    item.color === color &&
-                    item.size === size
-                  )
-              ),
-            };
-          }
-          return {
-            cart: state.cart.map((item) =>
-              item.product.id === productId &&
-              item.color === color &&
-              item.size === size
-                ? { ...item, quantity }
-                : item
-            ),
-          };
-        }),
-      getCartCount: () => get().cart.reduce((total, item) => total + item.quantity, 0),
-      getCartTotal: () =>
-        get().cart.reduce((total, item) => total + item.product.price * item.quantity, 0),
-      clearCart: () => set({ cart: [] }),
-
-      // Wishlist
-      wishlist: [],
-      addToWishlist: (product) =>
-        set((state) => {
-          if (state.wishlist.some((item) => item.product.id === product.id)) {
-            return state;
-          }
-          return {
-            wishlist: [
-              ...state.wishlist,
-              { product, addedAt: Date.now() },
-            ],
-          };
-        }),
-      removeFromWishlist: (productId) =>
-        set((state) => ({
-          wishlist: state.wishlist.filter((item) => item.product.id !== productId),
-        })),
-      isInWishlist: (productId) =>
-        get().wishlist.some((item) => item.product.id === productId),
-
-      // User
       user: null,
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
       isAuthenticated: false,
+      isCartOpen: false,
+
+      fetchProducts: async () => {
+        set({ isLoading: true });
+        try {
+          const q = query(collection(db, 'products'), orderBy('name', 'asc'));
+          const snapshot = await getDocs(q);
+          const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+          set({ products: items, isLoading: false });
+        } catch (error) {
+          console.error("Fetch error:", error);
+          set({ isLoading: false });
+        }
+      },
+
+      setUser: (user) => set({ user, isAuthenticated: !!user }),
+
+      setIsCartOpen: (isOpen) => set({ isCartOpen: isOpen }),
+
+      addToCart: (newItem) => set((state) => {
+        // Check if item already exists with same color and size
+        const existingItemIndex = state.cart.findIndex(
+          (item) => 
+            item.product.id === newItem.product.id && 
+            item.color === newItem.color && 
+            item.size === newItem.size
+        );
+
+        if (existingItemIndex > -1) {
+          const newCart = [...state.cart];
+          newCart[existingItemIndex].quantity += newItem.quantity;
+          return { cart: newCart };
+        }
+        return { cart: [...state.cart, newItem] };
+      }),
+
+      removeFromCart: (productId, color, size) => set((state) => ({
+        cart: state.cart.filter(
+          (item) => !(item.product.id === productId && item.color === color && item.size === size)
+        ),
+      })),
+
+      updateQuantity: (productId, color, size, quantity) => set((state) => ({
+        cart: state.cart.map((item) =>
+          item.product.id === productId && item.color === color && item.size === size
+            ? { ...item, quantity: Math.max(1, quantity) }
+            : item
+        ),
+      })),
+
+      getCartTotal: () => {
+        return get().cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+      },
+
+      getCartCount: () => {
+        return get().cart.reduce((sum, item) => sum + item.quantity, 0);
+      },
     }),
     {
-      name: 'prime-hoddie-store',
+      name: 'prime-hoodie-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ cart: state.cart, user: state.user }),
     }
   )
 );

@@ -1,16 +1,31 @@
 'use client';
 
 import { ArrowRight, Star, TrendingUp } from 'lucide-react';
-import { products } from '@/store/useStore';
+import { useStore } from '@/store/useStore'; // Use the hook to get live state
+import { useEffect } from 'react';
 
-// --- FIX: Updated interface to accept the product argument ---
 interface BestSellerSectionProps {
   onProductClick: (product: any) => void;
 }
 
 export function BestSellerSection({ onProductClick }: BestSellerSectionProps) {
-  // Selecting the specific product to pass to the handler
-  const product = products[0];
+  // 1. Get products and fetch function from the store
+  const { products, fetchProducts } = useStore();
+
+  // 2. Fetch products if the store is empty
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [products.length, fetchProducts]);
+
+  // 3. SAFETY CHECK: Find the bestseller or fallback to the first product
+  const product = products.find(p => p.isBestseller) || products[0];
+
+  // 4. GUARD: If still loading/undefined, return null or a skeleton to prevent crash
+  if (!product) {
+    return <div className="min-h-[200px] bg-[#0B0C0F]" />; 
+  }
 
   return (
     <section
@@ -39,7 +54,7 @@ export function BestSellerSection({ onProductClick }: BestSellerSectionProps) {
             </div>
             
             <h2 className="prime-headline text-white mb-4">
-              THE Hoddie THAT
+              THE HOODIE THAT
               <br />
               <span className="text-[#7B2FF7]">STARTED IT ALL</span>
             </h2>
@@ -53,9 +68,8 @@ export function BestSellerSection({ onProductClick }: BestSellerSectionProps) {
           {/* CTA Row */}
           <div className="flex flex-wrap items-center gap-6 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
             <button 
-              // --- FIX: Pass the product object back to the handler ---
               onClick={() => onProductClick(product)}
-              className="prime-btn-primary group"
+              className="px-8 py-4 bg-[#7B2FF7] text-white rounded-full font-bold flex items-center gap-2 group hover:bg-[#6a28d9] transition-all"
             >
               Shop Best Sellers
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -63,7 +77,7 @@ export function BestSellerSection({ onProductClick }: BestSellerSectionProps) {
             
             <button className="flex items-center gap-2 text-[#A6ACB8] hover:text-white transition-colors">
               <Star className="w-5 h-5" />
-              <span>See {product.reviews.toLocaleString()} reviews</span>
+              <span>See {product.reviews?.toLocaleString() || '0'} reviews</span>
             </button>
           </div>
 
@@ -71,7 +85,7 @@ export function BestSellerSection({ onProductClick }: BestSellerSectionProps) {
           <div className="grid grid-cols-3 gap-8 mt-12 max-w-lg animate-fade-in-up" style={{ animationDelay: '400ms' }}>
             {[
               { value: '50K+', label: 'Sold' },
-              { value: '4.9', label: 'Rating' },
+              { value: product.rating?.toString() || '4.9', label: 'Rating' },
               { value: '98%', label: 'Recommend' },
             ].map((stat, index) => (
               <div key={index} className="text-center">

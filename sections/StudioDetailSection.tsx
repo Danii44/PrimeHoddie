@@ -1,19 +1,43 @@
 'use client';
 
 import { ShoppingBag, Sparkles } from 'lucide-react';
-import { useStore, products } from '@/store/useStore';
+import { useStore } from '@/store/useStore';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 export function StudioDetailSection() {
-  const { addToCart } = useStore();
-  const product = products[0];
+  // 1. Pull everything from the store hook
+  const { products, fetchProducts, addToCart, setIsCartOpen } = useStore();
+
+  // 2. Fetch if data isn't there yet
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [products.length, fetchProducts]);
+
+  // 3. SAFETY CHECK: Get the first product safely
+  const product = products.length > 0 ? products[0] : null;
 
   const handleAddToCart = () => {
-    const color = product.colors[0].name;
-    const size = product.sizes[2];
+    if (!product) return;
+
+    // Use optional chaining for safe access
+    const color = product.colors?.[0]?.name || 'Standard';
+    const size = product.sizes?.[2] || product.sizes?.[0] || 'M';
+    
     addToCart(product, color, size);
+    
+    // Open the cart so the user sees the item was added
+    setIsCartOpen(true);
+    
     toast.success(`${product.name} added to cart!`);
   };
+
+  // 4. GUARD: If the data hasn't arrived yet, show a clean placeholder instead of crashing
+  if (!product) {
+    return <section className="h-[300px] bg-[#0B0C0F]" />;
+  }
 
   return (
     <section
@@ -58,11 +82,11 @@ export function StudioDetailSection() {
             <div className="flex flex-wrap items-center gap-4 animate-fade-in-left" style={{ animationDelay: '200ms' }}>
               <div>
                 <p className="text-sm text-[#A6ACB8] mb-1">Starting from</p>
-                <p className="text-4xl font-black text-white">${product.price}</p>
+                <p className="text-4xl font-black text-white">{product.price} AED</p>
               </div>
               <button
                 onClick={handleAddToCart}
-                className="prime-btn-primary"
+                className="flex items-center gap-2 px-8 py-4 bg-[#7B2FF7] text-white rounded-full font-bold hover:bg-[#6a28d9] transition-all"
               >
                 <ShoppingBag className="w-4 h-4" />
                 Buy Now

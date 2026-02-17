@@ -112,7 +112,7 @@ export function HeroSection() {
               
               <div className="absolute -bottom-4 -left-4 px-4 py-3 prime-glass rounded-xl animate-float">
                 <p className="text-xs text-[#A6ACB8]">Starting from</p>
-                <p className="text-xl font-bold text-white">$69</p>
+                <p className="text-xl font-bold text-white">69 AED</p>
               </div>
             </div>
           </div>

@@ -1,30 +1,52 @@
 'use client';
 
 import { ShoppingBag } from 'lucide-react';
-import { useStore, products } from '@/store/useStore';
+import { useStore } from '@/store/useStore';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 export function UrbanFitSection() {
-  // Added setIsCartOpen to destructuring
-  const { addToCart, selectedSize, setSelectedSize, setIsCartOpen } = useStore();
+  // Destructure state and actions from the store
+  const { 
+    products, 
+    fetchProducts, 
+    isLoading, 
+    addToCart, 
+    selectedSize, 
+    setSelectedSize, 
+    setIsCartOpen 
+  } = useStore();
   
-  // Using the first product from your store data
-  const product = products[0];
+  // 1. Fetch products on mount if they don't exist
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [products.length, fetchProducts]);
+
+  // 2. Safety Check: Get the product only if the array is populated
+  const product = products.length > 0 ? products[0] : null;
 
   const handleAddToCart = () => {
-    // Logic: use the user's selection or fallback to a default (Size M)
-    const size = selectedSize || product.sizes[2];
-    const color = product.colors[0].name;
+    if (!product) return;
 
-    // 1. Add item to global state
+    // Use selected size or fallback to the 3rd size in the list (usually 'L' or 'XL')
+    const size = selectedSize || product.sizes?.[2] || product.sizes?.[0];
+    const color = product.colors?.[0]?.name || 'Standard';
+
     addToCart(product, color, size);
-
-    // 2. FIX: Trigger the Cart Drawer to slide open
     setIsCartOpen(true);
-
-    // 3. Provide feedback
     toast.success(`${product.name} added to cart!`);
   };
+
+  // 3. Return null or a skeleton if product is missing to prevent crash
+  if (!product) {
+    return (
+      <section className="h-[400px] flex items-center justify-center bg-[#0B0C0F]">
+        <div className="animate-pulse text-[#7B2FF7]">Loading Urban Fit...</div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -73,8 +95,8 @@ export function UrbanFitSection() {
                 />
                 <div>
                   <h3 className="text-lg font-bold text-white leading-tight">{product.name}</h3>
-                  <p className="text-[#A6ACB8] text-sm">{product.colors[0].name}</p>
-                  <p className="text-xl font-black text-[#7B2FF7] mt-1">${product.price}</p>
+                  <p className="text-[#A6ACB8] text-sm">{product.colors?.[0]?.name}</p>
+                  <p className="text-xl font-black text-[#7B2FF7] mt-1">{product.price} AED</p>
                 </div>
               </div>
 
@@ -84,11 +106,11 @@ export function UrbanFitSection() {
                   Select Size
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((size) => (
+                  {product.sizes?.map((size) => (
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`size-chip px-4 py-2 rounded-lg border transition-all ${
+                      className={`px-4 py-2 rounded-lg border transition-all ${
                         selectedSize === size 
                           ? 'bg-[#7B2FF7] border-[#7B2FF7] text-white' 
                           : 'border-white/10 text-[#A6ACB8] hover:border-white/30'
@@ -103,7 +125,7 @@ export function UrbanFitSection() {
               {/* Call to Action */}
               <button
                 onClick={handleAddToCart}
-                className="w-full prime-btn-primary flex items-center justify-center gap-2 group"
+                className="w-full px-6 py-4 bg-[#7B2FF7] text-white rounded-xl font-bold flex items-center justify-center gap-2 group hover:bg-[#6a28d9] transition-all"
               >
                 <ShoppingBag className="w-4 h-4 transition-transform group-hover:scale-110" />
                 Add to Bag

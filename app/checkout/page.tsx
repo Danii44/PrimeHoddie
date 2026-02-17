@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
-import { useStore } from '@/lib/store';
+import { useStore } from '@/store/useStore';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';

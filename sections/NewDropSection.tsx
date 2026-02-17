@@ -1,31 +1,48 @@
 'use client';
 
 import { ArrowRight, ShoppingBag, Star } from 'lucide-react';
-import { useStore, products } from '@/store/useStore';
+import { useStore } from '@/store/useStore'; // Removed 'products' import to use store state
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 interface NewDropSectionProps {
   onProductClick: (product: any) => void;
 }
 
 export function NewDropSection({ onProductClick }: NewDropSectionProps) {
-  // Added setIsCartOpen to the store destructuring
-  const { addToCart, setSelectedColor, setIsCartOpen } = useStore();
-  const product = products[0];
+  // 1. Get products and fetch function from the store
+  const { products, fetchProducts, isLoading, addToCart, setIsCartOpen } = useStore();
+
+  // 2. Fetch products if the list is empty
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [products.length, fetchProducts]);
+
+  // 3. SAFETY CHECK: Get the first product, or null if it doesn't exist yet
+  const product = products.length > 0 ? products[0] : null;
 
   const handleAddToCart = () => {
-    const defaultColor = product.colors[0].name;
-    const defaultSize = product.sizes[2];
+    if (!product) return;
+
+    // Use optional chaining and fallbacks to prevent crashes
+    const defaultColor = product.colors?.[0]?.name || 'Standard';
+    const defaultSize = product.sizes?.[2] || product.sizes?.[0] || 'M';
     
-    // 1. Add to state
     addToCart(product, defaultColor, defaultSize);
-    
-    // 2. FIX: Open the cart drawer automatically
     setIsCartOpen(true);
-    
-    // 3. Notify user
     toast.success(`${product.name} added to cart!`);
   };
+
+  // 4. LOADING STATE: Show a skeleton or nothing while waiting for Firebase
+  if (isLoading || !product) {
+    return (
+      <section className="prime-section flex items-center justify-center bg-[#0B0C0F]">
+        <div className="text-[#7B2FF7] animate-pulse font-bold">LOADING NEW DROP...</div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -46,7 +63,6 @@ export function NewDropSection({ onProductClick }: NewDropSectionProps) {
       {/* Content */}
       <div className="relative z-10 w-full prime-container">
         <div className="flex justify-end items-center min-h-screen py-20">
-          {/* Product Card */}
           <div
             className="w-full max-w-md prime-glass rounded-3xl p-6 lg:p-8 animate-fade-in-right"
             style={{ perspective: '1000px' }}
@@ -82,7 +98,7 @@ export function NewDropSection({ onProductClick }: NewDropSectionProps) {
                   ))}
                 </div>
                 <span className="text-sm text-[#A6ACB8]">
-                  {product.rating} ({product.reviews.toLocaleString()} reviews)
+                  {product.rating} ({product.reviews?.toLocaleString()} reviews)
                 </span>
               </div>
 
@@ -94,11 +110,10 @@ export function NewDropSection({ onProductClick }: NewDropSectionProps) {
               <div className="mb-6">
                 <p className="text-xs text-[#A6ACB8] uppercase tracking-wider mb-2">Colors</p>
                 <div className="flex gap-2">
-                  {product.colors.map((color) => (
-                    <button
+                  {product.colors?.map((color) => (
+                    <div
                       key={color.name}
-                      onClick={() => setSelectedColor(color.name)}
-                      className="color-dot border-2 border-transparent hover:border-white transition-all"
+                      className="w-6 h-6 rounded-full border border-white/20"
                       style={{ backgroundColor: color.value }}
                       title={color.name}
                     />
@@ -110,7 +125,7 @@ export function NewDropSection({ onProductClick }: NewDropSectionProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-[#A6ACB8]">Price</p>
-                  <p className="text-3xl font-black text-white">${product.price}</p>
+                  <p className="text-3xl font-black text-white">{product.price} AED</p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -121,7 +136,7 @@ export function NewDropSection({ onProductClick }: NewDropSectionProps) {
                   </button>
                   <button
                     onClick={handleAddToCart}
-                    className="prime-btn-primary"
+                    className="flex items-center gap-2 px-6 py-3 bg-[#7B2FF7] text-white rounded-full font-bold hover:bg-[#6a28d9] transition-all active:scale-95"
                   >
                     <ShoppingBag className="w-4 h-4" />
                     Add to Bag
